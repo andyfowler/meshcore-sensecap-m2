@@ -2,7 +2,7 @@
 
 Firmware that turns a **Seeed SenseCAP M2 Multi-Platform** LoRaWAN gateway into a **[MeshCore](https://meshcore.io)** device. It's a custom [OpenWrt](https://openwrt.org) 24.10 image running [openHop Repeater](https://github.com/openhop-dev/openhop_repeater), and it supports the US/Canada **62.5 kHz** preset, which the M2's SX1302 gateway chip can't do on its own ([how](docs/radio.md)).
 
-> Early but running on real hardware (M2 Multi-Platform, US915). Please report what you find.
+> This is early but I have it running on real hardware. Please report what you find.
 
 ## What you get
 
@@ -39,9 +39,13 @@ Open the openHop dashboard at `http://meshcore-m2-xxxxxx.local:8000` (`xxxxxx` i
 
 Then it starts repeating. Change anything else (location, transmit power, regions, path hash mode, delays, owner info) in the openHop dashboard or with the usual repeater commands in the MeshCore app. Settings survive reboots and updates.
 
+### Wi-Fi
+
+In the OpenWrt web interface, go to **Network → Wireless → Scan**, join your network, and assign it to the **wan** firewall zone.
+
 ### Community settings files
 
-Your local mesh group may publish a settings file with its recommended values. After the wizard, import it under **Configuration → Backup & Restore → Import Configuration** in the dashboard. You get a preview first, and only the keys in the file change.
+Your local mesh group may publish a settings file with its recommended values. After the wizard, import it under **Configuration → Backup & Restore → Import Configuration** in the dashboard.
 
 Regions aren't part of the file; set them with `region put …` commands. A file's broker list replaces your current one, so it should list every network you want to upload to.
 
@@ -50,15 +54,11 @@ Regions aren't part of the file; set them with `region put …` commands. A file
 - The repeater's **identity key** is generated on the M2. Back it up (or import an existing one) in the dashboard.
 - The **root** password (SSH and the OpenWrt web interface) is set to your admin password when the wizard finishes. SSH password logins are off until then.
 
-### Wi-Fi
-
-In the OpenWrt web interface, go to **Network → Wireless → Scan**, join your network, and assign it to the **wan** firewall zone.
-
 ### Memory
 
 The M2 has 128 MB of RAM. The repeater, dashboard and one companion fit comfortably. OpenHop plugins may not.
 
-## Update
+## Updating
 
 You can't use openHop's built-in upgrade system. openHop is built into the firmware, so update with firmware releases, not the dashboard's update button. (Maybe we can fix this).
 
