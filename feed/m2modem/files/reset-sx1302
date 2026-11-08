@@ -1,0 +1,25 @@
+#!/bin/sh
+# Power up and reset the WM1302 (SX1302 + SX1250s) on the SenseCAP M2 (OpenWrt 24.10 / kernel 6.6).
+# Pins are gpiochip0 (bank0) lines: 2 GPS power, 3 SX1302 power, 14 SX1302 reset, 15 SX1261 reset.
+# (Seeed's 21.02 image used global numbers 482/483/494/495 for the same lines.)
+BASE=$(cat /sys/class/gpio/gpiochip512/base 2>/dev/null || echo 512)
+GPS_PWR=$((BASE + 2)); PWR=$((BASE + 3)); RST=$((BASE + 14)); RST1261=$((BASE + 15))
+
+pause() { sleep 1; }   # busybox sleep has no sub-second support here
+gpio_out() { [ -d /sys/class/gpio/gpio$1 ] || echo "$1" > /sys/class/gpio/export; echo out > /sys/class/gpio/gpio$1/direction; }
+gpio_set() { echo "$2" > /sys/class/gpio/gpio$1/value; }
+
+case "$1" in
+start)
+	for p in $GPS_PWR $PWR $RST $RST1261; do gpio_out $p; done
+	gpio_set $GPS_PWR 1; gpio_set $PWR 1; pause
+	gpio_set $RST 1; pause; gpio_set $RST 0; pause
+	gpio_set $RST1261 0; gpio_set $RST1261 1
+	;;
+stop)
+	for p in $GPS_PWR $PWR $RST $RST1261; do gpio_out $p; done
+	gpio_set $RST 1; pause; gpio_set $RST 0
+	gpio_set $PWR 0
+	;;
+*) echo "usage: $0 start|stop"; exit 1 ;;
+esac

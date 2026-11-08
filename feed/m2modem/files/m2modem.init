@@ -1,0 +1,20 @@
+#!/bin/sh /etc/rc.common
+# m2modem: SX1250-as-SX126x LoRa modem for the SenseCAP M2, serving the openHop
+# modem protocol on tcp/5055 (localhost only by default).
+
+START=90
+STOP=10
+USE_PROCD=1
+
+start_service() {
+	# make sure nothing else owns the concentrator
+	for s in chirpstack-concentratord-sx1302 chirpstack-concentratord lora_pkt_fwd; do
+		[ -x /etc/init.d/$s ] && /etc/init.d/$s running 2>/dev/null && /etc/init.d/$s stop
+	done
+	procd_open_instance
+	procd_set_param command /usr/sbin/m2modem -p 5055
+	procd_set_param respawn 3600 5 0
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+}

@@ -1,0 +1,10 @@
+# private per-site settings and keys (see docs/building.md)
+site/
+*.key
+*.key.hex
+# local logs and build output
+logs/
+out/
+# macOS / python clutter
+.DS_Store
+__pycache__/

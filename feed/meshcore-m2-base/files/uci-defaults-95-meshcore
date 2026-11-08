@@ -1,0 +1,4 @@
+#!/bin/sh
+# first boot: apply /etc/config/meshcore (Wi-Fi client + openHop config)
+/usr/libexec/meshcore-m2/firstboot
+exit 0

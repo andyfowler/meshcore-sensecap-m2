@@ -1,0 +1,11 @@
+#!/bin/sh
+# ssh-access lock|unlock - allow SSH password logins only once root has a password.
+# (A fresh image has no root password; we don't want an open root shell on the LAN.)
+case "$1" in
+lock)   uci -q set dropbear.@dropbear[0].PasswordAuth='off'; uci -q set dropbear.@dropbear[0].RootPasswordAuth='off' ;;
+unlock) uci -q set dropbear.@dropbear[0].PasswordAuth='on';  uci -q set dropbear.@dropbear[0].RootPasswordAuth='on' ;;
+*) echo "usage: $0 lock|unlock"; exit 1 ;;
+esac
+uci commit dropbear
+/etc/init.d/dropbear reload >/dev/null 2>&1
+exit 0

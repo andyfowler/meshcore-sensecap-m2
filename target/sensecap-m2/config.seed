@@ -1,0 +1,59 @@
+# OpenWrt 24.10 diffconfig for the meshcore-sensecap-m2 image.
+# Expanded with `make defconfig` after the M2 device patches are applied.
+
+CONFIG_TARGET_ramips=y
+CONFIG_TARGET_ramips_mt76x8=y
+CONFIG_TARGET_ramips_mt76x8_DEVICE_sensecap_wm7628n=y
+CONFIG_TARGET_ROOTFS_SQUASHFS=y
+CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256
+# keep failsafe mode available for recovery (ChirpStack's config disables it)
+# CONFIG_TARGET_PREINIT_DISABLE_FAILSAFE is not set
+
+CONFIG_IMAGEOPT=y
+CONFIG_VERSIONOPT=y
+CONFIG_VERSION_DIST="MeshCore-SenseCAP-M2"
+CONFIG_VERSION_MANUFACTURER="meshcore-sensecap-m2"
+CONFIG_VERSION_REPO="https://downloads.openwrt.org/releases/24.10.7"
+
+# ---- radio: kernel spidev for the WM1302 on /dev/spidev0.1
+CONFIG_PACKAGE_kmod-spi-dev=y
+
+# ---- networking extras
+CONFIG_PACKAGE_wpad-basic-mbedtls=y
+CONFIG_PACKAGE_ca-bundle=y
+
+# ---- OpenWrt web interface (Wi-Fi, network, passwords, firmware updates); ~1 MB flash, ~4 MB RAM
+CONFIG_PACKAGE_luci-light=y
+
+# ---- low-RAM helpers: compressed swap in RAM, and <hostname>.local on the LAN
+CONFIG_PACKAGE_zram-swap=y
+CONFIG_PACKAGE_umdns=y
+
+# ---- MeshCore repeater
+CONFIG_PACKAGE_m2modem=y
+CONFIG_PACKAGE_openhop-repeater=y
+CONFIG_PACKAGE_meshcore-m2-base=y
+
+# ---- python runtime (pulled in by openhop-repeater, listed for clarity)
+CONFIG_PACKAGE_python3-light=y
+CONFIG_PACKAGE_python3-asyncio=y
+CONFIG_PACKAGE_python3-logging=y
+CONFIG_PACKAGE_python3-sqlite3=y
+CONFIG_PACKAGE_python3-openssl=y
+CONFIG_PACKAGE_python3-urllib=y
+CONFIG_PACKAGE_python3-email=y
+CONFIG_PACKAGE_python3-codecs=y
+CONFIG_PACKAGE_python3-ctypes=y
+CONFIG_PACKAGE_python3-uuid=y
+CONFIG_PACKAGE_python3-decimal=y
+CONFIG_PACKAGE_python3-multiprocessing=y
+CONFIG_PACKAGE_python3-pynacl=y
+CONFIG_PACKAGE_python3-yaml=y
+CONFIG_PACKAGE_python3-paho-mqtt=y
+CONFIG_PACKAGE_python3-psutil=y
+CONFIG_PACKAGE_python3-pyserial=y
+CONFIG_PACKAGE_python3-websockets=y
+CONFIG_PACKAGE_python3-dateutil=y
+CONFIG_PACKAGE_python3-more-itertools=y
+CONFIG_PACKAGE_python3-typing-extensions=y
+# CONFIG_PACKAGE_python3-cryptography is not set

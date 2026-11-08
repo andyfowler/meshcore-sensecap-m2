@@ -1,0 +1,34 @@
+#!/bin/sh
+# Image defaults: DHCP on the Ethernet port, a recognisable hostname, and SSH/LuCI/
+# dashboard/companion reachable from the house network (the M2's port is the wan zone).
+uci -q batch <<EOI
+set network.lan.proto='dhcp'
+delete network.lan.ipaddr
+delete network.lan.netmask
+delete network.lan.ip6assign
+EOI
+uci commit network
+
+# hostname meshcore-m2-xxxxxx (last 3 bytes of the Ethernet MAC)
+. /lib/functions/system.sh
+mac=$(mtd_get_mac_binary factory 0x2e 2>/dev/null | tr -d ':' | tail -c 7)
+[ -n "$mac" ] && uci set system.@system[0].hostname="meshcore-m2-$mac" && uci commit system
+
+for r in "Allow-SSH-WAN:22" "Allow-LuCI-WAN:80" "Allow-openHop-WAN:8000"; do
+	name=${r%%:*}; port=${r##*:}
+	uci -q show firewall | grep -q "name='$name'" && continue
+	uci -q batch <<EOI
+add firewall rule
+set firewall.@rule[-1].name='$name'
+set firewall.@rule[-1].src='wan'
+set firewall.@rule[-1].dest_port='$port'
+set firewall.@rule[-1].proto='tcp'
+set firewall.@rule[-1].target='ACCEPT'
+EOI
+done
+uci commit firewall
+
+# snapshot openHop's in-RAM database to flash every 6 hours
+grep -q db-snapshot /etc/crontabs/root 2>/dev/null || echo '17 */6 * * * /usr/libexec/meshcore-m2/db-snapshot save' >> /etc/crontabs/root
+/etc/init.d/cron enable
+exit 0

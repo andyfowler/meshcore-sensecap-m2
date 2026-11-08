@@ -1,0 +1,12 @@
+{
+  "sensecap-m2": {
+    "name": "SenseCAP M2 (built-in radio)",
+    "description": "Seeed SenseCAP M2 running the meshcore-sensecap-m2 image. The M2's radio is served by m2modem on this device (127.0.0.1:5055).",
+    "connection_type": "network",
+    "radio_type": "modem_tcp",
+    "modem_tcp_host": "127.0.0.1",
+    "modem_tcp_port": 5055,
+    "tx_power": 22,
+    "preamble_length": 16
+  }
+}

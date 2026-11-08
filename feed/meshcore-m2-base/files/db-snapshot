@@ -1,0 +1,24 @@
+#!/bin/sh
+# db-snapshot save|restore - openHop keeps its database (regions, companion contacts,
+# neighbours, stats) in RAM on OpenWrt. Save a consistent copy to flash periodically
+# and on shutdown, and restore it at boot.
+LIVE=/var/lib/openhop_repeater/repeater.db
+SAVED=/etc/openhop_repeater/state/repeater.db
+case "$1" in
+restore)
+	[ -f "$SAVED" ] && [ ! -f "$LIVE" ] && mkdir -p "${LIVE%/*}" && cp "$SAVED" "$LIVE" && logger -t meshcore-m2 "restored openHop database snapshot"
+	;;
+save)
+	[ -f "$LIVE" ] || exit 0
+	mkdir -p "${SAVED%/*}"
+	python3 - "$LIVE" "$SAVED.tmp" <<'PY' && mv "$SAVED.tmp" "$SAVED"
+import sqlite3, sys
+src = sqlite3.connect(sys.argv[1], timeout=30)
+dst = sqlite3.connect(sys.argv[2])
+src.backup(dst)
+dst.execute("VACUUM")
+dst.close(); src.close()
+PY
+	;;
+*) echo "usage: $0 save|restore"; exit 1 ;;
+esac
