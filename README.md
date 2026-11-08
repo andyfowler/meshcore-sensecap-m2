@@ -41,7 +41,14 @@ Then it starts repeating. Change anything else (location, transmit power, region
 
 ### Wi-Fi
 
-In the OpenWrt web interface, go to **Network → Wireless → Scan**, join your network, and assign it to the **wan** firewall zone.
+The M2 can use Wi-Fi (2.4 GHz only) instead of Ethernet:
+
+1. In the OpenWrt web interface, go to **Network → Wireless** and click **Scan**.
+2. Click **Join Network** next to your network.
+3. Enter your Wi-Fi password, leave the network name as `wwan`, and set **Create / Assign firewall-zone** to **`wan`**. The `wan` zone is what lets you reach the M2 from your network.
+4. Click **Submit**, then **Save**, then **Save & Apply**.
+
+The M2 gets a new IP address on Wi-Fi. Once you can reach the openHop dashboard at that address, you can unplug the Ethernet cable.
 
 ### Community settings files
 
