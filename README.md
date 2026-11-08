@@ -1,7 +1,7 @@
 # MeshCore for the SenseCAP M2
 
 Firmware that turns a **Seeed SenseCAP M2 Multi-Platform** LoRaWAN gateway into a
-**[MeshCore](https://meshcore.co.uk)** device. It's a custom [OpenWrt](https://openwrt.org) 24.10
+**[MeshCore](https://meshcore.io)** device. It's a custom [OpenWrt](https://openwrt.org) 24.10
 image running [openHop Repeater](https://github.com/openhop-dev/openhop_repeater), and it supports
 the US/Canada **62.5 kHz** preset, which the M2's SX1302 gateway chip can't do on its own
 ([how](docs/radio.md)).
