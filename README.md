@@ -73,6 +73,15 @@ Your keys, settings, etc. are kept.
 - **Start over**: `firstboot -y && reboot` wipes all settings and keys. Export your identity first.
 - **Recovery**: press the reset button repeatedly while the M2 boots to enter OpenWrt failsafe mode at `192.168.1.1`. The bootloader also has a TFTP recovery menu on the USB-C serial console (57600 baud).
 
+## In this repo
+
+- **`feed/m2modem/`** – the radio driver. A small C daemon that runs the M2's SX1250 radio as a standard LoRa transceiver (including 62.5 kHz), switches the front-end amplifier, and serves openHop's modem protocol on `127.0.0.1:5055`. See [docs/radio.md](docs/radio.md).
+- **`feed/openhop-repeater/`** – openHop Repeater and openHop Core packaged for OpenWrt, pinned to tested versions, with the few Python libraries OpenWrt doesn't ship and a small patch that adds the M2 to the setup wizard.
+- **`feed/meshcore-m2-base/`** – first-boot setup: optional preset configuration (`/etc/config/meshcore`), root password and SSH handling, and saving openHop's database to flash so regions and companion contacts survive reboots.
+- **`target/sensecap-m2/`** – the OpenWrt 24.10 image configuration and M2 device support.
+- **`build/`** – Dockerfile and build script. See [docs/building.md](docs/building.md).
+- **`.github/workflows/`** – builds the image and attaches it to releases.
+
 ## More
 
 - [docs/radio.md](docs/radio.md): how the M2's radio does 62.5 kHz, and radio troubleshooting
