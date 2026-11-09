@@ -46,28 +46,33 @@ jobs:
 
       # The OpenWrt host tools and cross-compiler take most of a clean build and
       # only change with OpenWrt or the build config, so cache them as one tarball
-      # (a tarball keeps the build user's file ownership). On any mismatch OpenWrt
-      # just rebuilds them.
+      # (a tarball keeps the build user's file ownership). The cross-compiler's
+      # build directory is 3.5 GB, so only its "done" marker files are kept; they
+      # are what tells OpenWrt not to rebuild it. On any mismatch OpenWrt just
+      # rebuilds.
       - name: Restore toolchain cache
         id: tc
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/tc
-          key: openwrt-toolchain-${{ hashFiles('build/build.sh', 'build/Dockerfile', 'target/sensecap-m2/config.seed', 'target/sensecap-m2/patches/**') }}
+          key: openwrt-toolchain-v2-${{ hashFiles('build/build.sh', 'build/Dockerfile', 'target/sensecap-m2/config.seed', 'target/sensecap-m2/patches/**') }}
 
       - name: Unpack toolchain cache
         if: steps.tc.outputs.cache-hit == 'true'
         run: |
           sudo tar -C $W/openwrt -xpf $TC/toolchain.tar
           # newer than the fresh OpenWrt checkout, so make treats them as up to date
-          sudo find $W/openwrt/staging_dir -exec touch -h {} +
+          sudo find $W/openwrt/staging_dir $W/openwrt/build_dir -exec touch -h {} +
 
       - name: Build toolchain
         run: $RUN /src/build/build.sh toolchain
 
       - name: Save toolchain cache
         if: steps.tc.outputs.cache-hit != 'true'
-        run: cd "$W/openwrt" && sudo tar -cpf "$TC/toolchain.tar" staging_dir/host staging_dir/toolchain-*
+        run: |
+          cd "$W/openwrt"
+          find build_dir/toolchain-* -maxdepth 2 -type f \( -name '.prepared*' -o -name '.configured*' -o -name '.built*' \) > "$RUNNER_TEMP/stamps"
+          sudo tar -cpf "$TC/toolchain.tar" staging_dir/host staging_dir/toolchain-* -T "$RUNNER_TEMP/stamps"
 
       - if: steps.tc.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
