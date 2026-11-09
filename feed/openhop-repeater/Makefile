@@ -114,6 +114,27 @@ define Download/ws4py
   HASH:=1499c3fc103a65eb12d7b1ead7566f88487f6f678ab10ee4e53cf2411c068752
 endef
 $(eval $(call Download,ws4py))
+# Pure-Python wheels instead of OpenWrt's python3-dateutil and python3-websockets
+# packages: those depend on OpenWrt's full python3 bundle (pydoc, distutils,
+# unittest, curses, ...), about 1 MB of compressed flash openHop never uses.
+define Download/python-dateutil
+  FILE:=python_dateutil-2.9.0.post0-py2.py3-none-any.whl
+  URL:=https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/
+  HASH:=a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
+endef
+$(eval $(call Download,python-dateutil))
+define Download/six
+  FILE:=six-1.17.0-py2.py3-none-any.whl
+  URL:=https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/
+  HASH:=4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274
+endef
+$(eval $(call Download,six))
+define Download/websockets
+  FILE:=websockets-11.0.3-py3-none-any.whl
+  URL:=https://files.pythonhosted.org/packages/47/96/9d5749106ff57629b54360664ae7eb9afd8302fad1680ead385383e33746/
+  HASH:=6681ba9e7f8f3b19440921e99efbb40fc89f26cd71bf539e45d8c8a25c976dc6
+endef
+$(eval $(call Download,websockets))
 PY_WHEELS:=cheroot-11.1.2-py3-none-any.whl \
 	CherryPy-18.10.0-py3-none-any.whl \
 	cherrypy_cors-1.7.0-py3-none-any.whl \
@@ -128,7 +149,10 @@ PY_WHEELS:=cheroot-11.1.2-py3-none-any.whl \
 	pyjwt-2.15.1-py3-none-any.whl \
 	backports.tarfile-1.2.0-py3-none-any.whl \
 	autocommand-2.2.2-py3-none-any.whl \
-	ws4py-0.6.0-py3-none-any.whl
+	ws4py-0.6.0-py3-none-any.whl \
+	python_dateutil-2.9.0.post0-py2.py3-none-any.whl \
+	six-1.17.0-py2.py3-none-any.whl \
+	websockets-11.0.3-py3-none-any.whl
 
 define Package/openhop-repeater
   SECTION:=net
@@ -138,7 +162,7 @@ define Package/openhop-repeater
   DEPENDS:=+python3-light +python3-asyncio +python3-logging +python3-sqlite3 +python3-openssl \
 	+python3-urllib +python3-email +python3-codecs +python3-ctypes +python3-uuid +python3-decimal \
 	+python3-multiprocessing +libopenssl +python3-pynacl +python3-yaml +python3-paho-mqtt \
-	+python3-psutil +python3-pyserial +python3-websockets +python3-dateutil +python3-more-itertools \
+	+python3-psutil +python3-pyserial +python3-xml +python3-more-itertools \
 	+python3-typing-extensions +m2modem
 endef
 
@@ -178,7 +202,9 @@ define Build/Compile
 	$(STAGING_DIR_HOSTPKG)/bin/python3 -c 'import json,sys; f=sys.argv[1]; d=json.load(open(f)); d["hardware"]={**json.load(open(sys.argv[2])), **d["hardware"]}; json.dump(d,open(f,"w"),indent=2)' \
 		$$$$(ls -d $(PKG_BUILD_DIR)/src/openhop_repeater-*)/radio-settings.json ./files/sensecap-m2-hardware.json
 	$(STAGING_DIR_HOSTPKG)/bin/python3 ./files/openhop_tweaks.py $(OH_LIB) $(M2_BUILD)
-	$(STAGING_DIR_HOSTPKG)/bin/python3 -m compileall -q -j 0 -d /usr/lib/openhop $(OH_LIB) >/dev/null
+	# ship compiled .pyc files only, like OpenWrt's own Python packages
+	$(STAGING_DIR_HOSTPKG)/bin/python3 -m compileall -b -q -j 0 -d /usr/lib/openhop $(OH_LIB) >/dev/null
+	find $(OH_LIB) -name '*.py' -delete
 endef
 
 define Package/openhop-repeater/install

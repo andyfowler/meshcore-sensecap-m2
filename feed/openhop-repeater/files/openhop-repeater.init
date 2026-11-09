@@ -11,6 +11,13 @@ HELPERS=/usr/libexec/meshcore-m2
 start_service() {
 	[ -f "$CONF" ] || $HELPERS/firstboot --force
 	mkdir -p /var/lib/openhop_repeater
+	# waev:outpost image: serve the bundled console as an enabled UI plugin
+	# (openHop reads plugins straight from disk; no plugin manager needed)
+	if [ -d /usr/share/openhop/waev.outpost ]; then
+		mkdir -p /var/lib/openhop_repeater/plugins/waev.outpost
+		ln -sfn /usr/share/openhop/waev.outpost /var/lib/openhop_repeater/plugins/waev.outpost/current
+		cp /usr/share/openhop/waev.outpost/state.json /var/lib/openhop_repeater/plugins/waev.outpost/
+	fi
 	[ -x $HELPERS/db-snapshot ] && $HELPERS/db-snapshot restore
 	procd_open_instance
 	procd_set_param command /usr/bin/python3 -m repeater.main --config "$CONF"
