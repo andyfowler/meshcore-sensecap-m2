@@ -6,6 +6,8 @@ PKG_RELEASE:=1
 
 # openHop Repeater 1.1.4 (keep in step with the commit below)
 OPENHOP_REPEATER_VERSION:=1.1.4
+# this repo's commit, shown in the dashboard's version details
+M2_BUILD:=$(shell git -C $(CURDIR) -c safe.directory='*' rev-parse --short HEAD 2>/dev/null || echo local)
 PKG_SOURCE:=openhop_repeater-13eb8b2ea8b1.tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/openhop-dev/openhop_repeater/tar.gz/13eb8b2ea8b1cdb4a07ed6e282dc99e3aa8a5a8b?
 PKG_HASH:=e32248bd1f3095179a83532bb962a1f0a07a518cb254c1ec29ddfecda919f865
@@ -175,7 +177,7 @@ define Build/Compile
 	# add the SenseCAP M2 as the first hardware choice in openHop's setup wizard
 	$(STAGING_DIR_HOSTPKG)/bin/python3 -c 'import json,sys; f=sys.argv[1]; d=json.load(open(f)); d["hardware"]={**json.load(open(sys.argv[2])), **d["hardware"]}; json.dump(d,open(f,"w"),indent=2)' \
 		$$$$(ls -d $(PKG_BUILD_DIR)/src/openhop_repeater-*)/radio-settings.json ./files/sensecap-m2-hardware.json
-	$(STAGING_DIR_HOSTPKG)/bin/python3 ./files/openhop_tweaks.py $(OH_LIB)
+	$(STAGING_DIR_HOSTPKG)/bin/python3 ./files/openhop_tweaks.py $(OH_LIB) $(M2_BUILD)
 	$(STAGING_DIR_HOSTPKG)/bin/python3 -m compileall -q -j 0 -d /usr/lib/openhop $(OH_LIB) >/dev/null
 endef
 

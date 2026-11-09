@@ -95,7 +95,7 @@ Your keys, settings, etc. are kept.
 
 ### Changes to upstream software
 
-- **openHop**: adds the M2 to the setup wizard; writes the openHop version into the package, so the dashboard doesn't offer an update and the MeshCore app's version query gets a real answer; reports the model as `openHop-Repeater (SenseCAP M2)` in MQTT status messages; replaces pycryptodome with a tiny wrapper around OpenWrt's OpenSSL; and skips two slow startup steps in CherryPy's dependencies (a timezone table and a package-version lookup).
+- **openHop**: adds the M2 to the setup wizard; hides the dashboard's "Plugin manager is unavailable" banner; shows this repo's commit in the version details (click the version badges); writes the openHop version into the package, so the dashboard doesn't offer an update and the MeshCore app's version query gets a real answer; reports the model as `openHop-Repeater (SenseCAP M2)` in MQTT status messages; replaces pycryptodome with a tiny wrapper around OpenWrt's OpenSSL; and skips two slow startup steps in CherryPy's dependencies (a timezone table and a package-version lookup).
 - **SX1302 HAL**: Seeed's patch for the M2's half-duplex SPI bus.
 - **OpenWrt**: ChirpStack's M2 device support, with the flash chip clocked at 40 MHz instead of Seeed's 10 MHz, and 64 KB compressed blocks instead of 256 KB. openHop loads hundreds of small files at startup, and both changes make that much faster.
 
