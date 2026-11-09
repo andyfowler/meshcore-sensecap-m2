@@ -19,11 +19,11 @@ def edit(path, old, new):
 
 # Setup wizard: point M2 owners at the right connection card. The text lives in
 # the compiled web app, whose file name changes with every openHop release.
-old = "description:`Direct SPI/GPIO connected HATs and board-integrated radios.`"
+old = "{key:`gpio`,title:`HAT GPIO Based Device`,"
 hits = [p for p in (lib / "repeater/web/html/assets").glob("Setup-*.js") if old in p.read_text()]
 if len(hits) != 1:
     sys.exit("openhop_tweaks: setup wizard text not found in exactly one file")
-edit(hits[0], old, "description:`Choose this for your SenseCAP M2. Also for SPI/GPIO HATs and other board-integrated radios.`")
+edit(hits[0], old, "{key:`gpio`,title:`SenseCAP M2 / other GPIO device`,")
 
 # MQTT status messages (LetsMesh, MeshMapper, ...): name the hardware.
 edit(

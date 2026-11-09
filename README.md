@@ -36,6 +36,7 @@ You need a **SenseCAP M2 Multi-Platform** (that's all I've tested it on). Probab
 Open the openHop dashboard at `http://meshcore-m2-xxxxxx.local:8000` (`xxxxxx` is the end of the M2's MAC address) or `http://<ip>:8000`. The setup wizard asks for:
 
 - **Name** for the repeater
+- **Connection type**: choose **SenseCAP M2 / other GPIO device**
 - **Hardware**: choose **SenseCAP M2 (built-in radio)**
 - **Radio preset** your mesh uses (US/Canada: 910.525 MHz, 62.5 kHz, SF7, CR 4/5)
 - **Admin password**, 8 or more characters, for the dashboard and MeshCore remote admin. This password will also become your OpenWRT root password.
