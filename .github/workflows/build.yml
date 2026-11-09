@@ -9,7 +9,17 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 300
+    permissions:
+      contents: write   # attach images to releases
     steps:
+      - name: Set paths
+        run: |
+          W=$RUNNER_TEMP/work DL=$RUNNER_TEMP/dl
+          {
+            echo "W=$W"; echo "DL=$DL"; echo "TC=$RUNNER_TEMP/tc"
+            echo "RUN=docker run --rm -v $W:/work -v $DL:/work/dl-cache -v $GITHUB_WORKSPACE:/src:ro -e JOBS=$(nproc) -e DL_CACHE=/work/dl-cache meshcore-sensecap-m2-build"
+          } >> "$GITHUB_ENV"
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
@@ -28,22 +38,51 @@ jobs:
           key: openwrt-dl-${{ hashFiles('target/sensecap-m2/config.seed', 'feed/**/Makefile') }}
           restore-keys: openwrt-dl-
 
-      - name: Build
+      - name: Prepare
         run: |
-          mkdir -p ${{ runner.temp }}/work ${{ runner.temp }}/dl
-          sudo chown 1000:1000 ${{ runner.temp }}/work ${{ runner.temp }}/dl
-          docker run --rm \
-            -v ${{ runner.temp }}/work:/work \
-            -v ${{ runner.temp }}/dl:/work/dl-cache \
-            -v ${{ github.workspace }}:/src:ro \
-            -e JOBS=$(nproc) -e DL_CACHE=/work/dl-cache \
-            meshcore-sensecap-m2-build /src/build/build.sh all
+          mkdir -p $W $DL $TC
+          sudo chown 1000:1000 $W $DL
+          $RUN /src/build/build.sh prepare
+
+      # The OpenWrt host tools and cross-compiler take most of a clean build and
+      # only change with OpenWrt or the build config, so cache them as one tarball
+      # (a tarball keeps the build user's file ownership). On any mismatch OpenWrt
+      # just rebuilds them.
+      - name: Restore toolchain cache
+        id: tc
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tc
+          key: openwrt-toolchain-${{ hashFiles('build/build.sh', 'build/Dockerfile', 'target/sensecap-m2/config.seed', 'target/sensecap-m2/patches/**') }}
+
+      - name: Unpack toolchain cache
+        if: steps.tc.outputs.cache-hit == 'true'
+        run: |
+          sudo tar -C $W/openwrt -xpf $TC/toolchain.tar
+          # newer than the fresh OpenWrt checkout, so make treats them as up to date
+          sudo find $W/openwrt/staging_dir -exec touch -h {} +
+
+      - name: Build toolchain
+        run: $RUN /src/build/build.sh toolchain
+
+      - name: Save toolchain cache
+        if: steps.tc.outputs.cache-hit != 'true'
+        run: cd "$W/openwrt" && sudo tar -cpf "$TC/toolchain.tar" staging_dir/host staging_dir/toolchain-*
+
+      - if: steps.tc.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tc
+          key: ${{ steps.tc.outputs.cache-primary-key }}
+
+      - name: Build image
+        run: $RUN /src/build/build.sh image
 
       - name: Collect artifacts
         run: |
           mkdir -p out
-          cp ${{ runner.temp }}/work/openwrt/bin/targets/ramips/mt76x8/*sensecap*sysupgrade.bin out/
-          cp ${{ runner.temp }}/work/openwrt/bin/targets/ramips/mt76x8/sha256sums out/ || true
+          cp $W/openwrt/bin/targets/ramips/mt76x8/*sensecap*sysupgrade.bin out/
+          cp $W/openwrt/bin/targets/ramips/mt76x8/sha256sums out/ || true
           ls -l out
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
