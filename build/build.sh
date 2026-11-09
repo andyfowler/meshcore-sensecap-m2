@@ -2,7 +2,7 @@
 # Build the meshcore-m2 OpenWrt image. Runs inside the build container:
 #   /src  = this repo (read-only bind mount)
 #   /work = case-sensitive build volume
-# Usage: build.sh [prepare|toolchain|image|all]   (default: all)
+# Usage: build.sh [prepare|toolchain|image|waev|all]   (default: all)
 set -euo pipefail
 OPENWRT_TAG=${OPENWRT_TAG:-v24.10.7}
 JOBS=${JOBS:-$(nproc)}
@@ -28,6 +28,9 @@ prepare() {
 	grep -q '^src-link meshcore ' feeds.conf || echo "src-link meshcore $SRC/feed" >> feeds.conf
 	./scripts/feeds update -a
 	./scripts/feeds install -a
+	# python3-cffi only needs pycparser to compile new bindings, not to run
+	# PyNaCl's prebuilt ones, so don't ship it (or its dependency ply)
+	perl -0pi -e 's/ \\\n\s*\+python3-pycparser//' feeds/packages/lang/python/python-cffi/Makefile
 	# image overlay files
 	rm -rf files && mkdir -p files/etc/hotplug.d/net
 	cp "$SRC/target/sensecap-m2/files/10-set-wifi-mac" files/etc/hotplug.d/net/
@@ -58,10 +61,17 @@ dl_cache() {
 }
 toolchain() { cd "$OW"; dl_cache; make -j"$JOBS" download; make -j"$JOBS" toolchain/install; }
 image()     { cd "$OW"; make -j"$JOBS" || make -j1 V=s; ls -l bin/targets/ramips/mt76x8/; }
+# the same image plus the waev:outpost console; run after 'image' (reuses its build)
+waev()      {
+	cd "$OW"
+	grep -q '^CONFIG_PACKAGE_waev-outpost=y' .config || { echo 'CONFIG_PACKAGE_waev-outpost=y' >> .config; make defconfig; }
+	image
+}
 
 case "$step" in
 	prepare) prepare ;;
 	toolchain) toolchain ;;
 	image) image ;;
+	waev) waev ;;
 	all) prepare; toolchain; image ;;
 esac

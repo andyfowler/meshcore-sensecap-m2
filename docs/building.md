@@ -15,7 +15,9 @@ docker run --rm \
 ```
 
 `build.sh` steps can also be run one at a time: `prepare` (clone OpenWrt, apply the M2
-device patches, set up the package feeds), `toolchain`, `image`.
+device patches, set up the package feeds), `toolchain`, `image`. After `image`, `waev`
+builds the same image plus the waev:outpost console (copy the first image out before it,
+as both have the same file name).
 
 Copy the result out of the volume:
 
@@ -64,6 +66,7 @@ feed/                     OpenWrt package feed
   m2modem/                the M2 radio driver (C)
   openhop-repeater/       openHop packaged for OpenWrt (+ a small setup-wizard patch)
   meshcore-m2-base/       first-boot setup, site configuration, helper scripts
+  waev-outpost/           the waev:outpost console for the -waev image, trimmed to fit
 docs/
 ```
 

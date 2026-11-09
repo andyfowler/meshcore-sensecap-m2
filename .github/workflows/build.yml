@@ -45,17 +45,23 @@ jobs:
           $RUN /src/build/build.sh prepare
 
       # The OpenWrt host tools and cross-compiler take most of a clean build and
-      # only change with OpenWrt or the build config, so cache them as one tarball
-      # (a tarball keeps the build user's file ownership). The cross-compiler's
-      # build directory is 3.5 GB, so only its "done" marker files are kept; they
-      # are what tells OpenWrt not to rebuild it. On any mismatch OpenWrt just
-      # rebuilds.
+      # only change with the OpenWrt version, the target or the build container,
+      # so cache them as one tarball (a tarball keeps the build user's file
+      # ownership). The cross-compiler's build directory is 3.5 GB, so only its
+      # "done" marker files are kept; they are what tells OpenWrt not to rebuild
+      # it. On any mismatch OpenWrt just rebuilds.
+      - name: Toolchain cache key
+        id: tckey
+        run: |
+          h=$(cat <(grep '^OPENWRT_TAG=' build/build.sh) <(grep '^CONFIG_TARGET_ramips' target/sensecap-m2/config.seed) build/Dockerfile | sha256sum | cut -c1-16)
+          echo "key=openwrt-toolchain-v3-$h" >> "$GITHUB_OUTPUT"
+
       - name: Restore toolchain cache
         id: tc
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/tc
-          key: openwrt-toolchain-v2-${{ hashFiles('build/build.sh', 'build/Dockerfile', 'target/sensecap-m2/config.seed', 'target/sensecap-m2/patches/**') }}
+          key: ${{ steps.tckey.outputs.key }}
 
       - name: Unpack toolchain cache
         if: steps.tc.outputs.cache-hit == 'true'
@@ -83,11 +89,21 @@ jobs:
       - name: Build image
         run: $RUN /src/build/build.sh image
 
-      - name: Collect artifacts
+      - name: Collect image
         run: |
           mkdir -p out
-          cp $W/openwrt/bin/targets/ramips/mt76x8/*sensecap*sysupgrade.bin out/
-          cp $W/openwrt/bin/targets/ramips/mt76x8/sha256sums out/ || true
+          cp $W/openwrt/bin/targets/ramips/mt76x8/*sensecap*squashfs-sysupgrade.bin out/
+
+      # the same image plus the waev:outpost console (a few more minutes)
+      - name: Build waev image
+        run: $RUN /src/build/build.sh waev
+
+      - name: Collect waev image
+        run: |
+          f=$(ls $W/openwrt/bin/targets/ramips/mt76x8/*sensecap*squashfs-sysupgrade.bin)
+          b=$(basename "$f" -squashfs-sysupgrade.bin)
+          cp "$f" "out/$b-waev-squashfs-sysupgrade.bin"
+          (cd out && sha256sum *.bin > sha256sums)
           ls -l out
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
