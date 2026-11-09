@@ -11,7 +11,7 @@ uci commit network
 
 # hostname meshcore-m2-xxxxxx (last 3 bytes of the Ethernet MAC)
 . /lib/functions/system.sh
-mac=$(mtd_get_mac_binary factory 0x2e 2>/dev/null | tr -d ':' | tail -c 7)
+mac=$(mtd_get_mac_binary factory 0x2e 2>/dev/null | tr -d ':\n' | tail -c 6)
 [ -n "$mac" ] && uci set system.@system[0].hostname="meshcore-m2-$mac" && uci commit system
 
 for r in "Allow-SSH-WAN:22" "Allow-LuCI-WAN:80" "Allow-openHop-WAN:8000"; do
