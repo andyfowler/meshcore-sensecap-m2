@@ -70,10 +70,10 @@ jobs:
           # the tarball only lists the build_dir marker files, so tar creates their
           # folders as root; hand everything back to the container's build user
           sudo chown -R 1000:1000 $W/openwrt/staging_dir $W/openwrt/build_dir
-          # newer than the fresh OpenWrt checkout, so make treats them as up to date.
-          # One timestamp for all: touching file by file can leave a "built" marker a
-          # second newer than its "installed" marker, and make then reinstalls from
-          # build files that aren't cached.
+          # Make everything newer than the fresh OpenWrt checkout, so make treats it as
+          # up to date. One timestamp for all: touching file by file can leave a "built"
+          # marker a second newer than its "installed" marker, and make then reinstalls
+          # from build files that aren't cached.
           T=$(date +%s)
           sudo find $W/openwrt/staging_dir $W/openwrt/build_dir -exec touch -h -d "@$T" {} +
 
