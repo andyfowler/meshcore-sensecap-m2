@@ -27,7 +27,7 @@ You need a **SenseCAP M2 Multi-Platform** (that's all I've tested it on). Probab
 
 1. **Log in to your M2.** Find it in your router's device list (it shows up as "SenseCAP"), open `https://<address>`, and log in with the username and password from the sticker underneath.
 2. **Flash Seeed's open-source firmware.** Download the file for your region from [Seeed's releases](https://github.com/Seeed-Solution/LoRa_Gateway_OpenWRT/releases), e.g. the one ending `-sysupgrade-US915-4G.bin` (the 4G build works fine without a cellular modem). Go to **System → Backup / Flash Firmware → Local upgrade** and flash it. Untick *Keep settings* if offered. You can skip this step if you're already running ChirpStack Gateway OS.
-3. **[Download this firmware](https://github.com/andyfowler/meshcore-sensecap-m2/releases/latest)**. Choose the file ending `-squashfs-sysupgrade.bin`, or `-waev-squashfs-sysupgrade.bin` for the version that also includes the [waev:outpost](#waevoutpost-console) console.
+3. **[Download this firmware](https://github.com/andyfowler/meshcore-sensecap-m2/releases/latest)**. Choose the file ending `-squashfs-sysupgrade.bin`.
 4. **Flash this firmware.** Open the OpenWrt web interface at `http://<address>` (user `root`, no password). Go to **System → Backup / Flash Firmware → Flash new firmware image**, untick *Keep settings*, and flash.
 5. **Wait about 5 minutes.** The first boot is slow.
 
@@ -67,22 +67,23 @@ Regions aren't part of the file; set them with `region put …` commands. A file
 
 ### waev:outpost console
 
-The `-waev` image also includes [waev:outpost](https://github.com/Treehouse-00/waev-outpost-plugin), an alternative console for openHop with a mesh map, a packet inspector and companion chat. Open it at `http://<address>:8000/plugins/waev.outpost/` and log in with your dashboard password. To make it the page at `http://<address>:8000/`, go to **System → Configuration → Access → Web Options → Web Frontend** in the openHop dashboard.
+The image also includes [waev:outpost](https://github.com/Treehouse-00/waev-outpost-plugin), an alternative console for openHop with a mesh map, a packet inspector and companion chat. Open it at `http://<address>:8000/plugins/waev.outpost/` and log in with your dashboard password. To make it the page at `http://<address>:8000/`, go to **System → Configuration → Access → Web Options → Web Frontend** in the openHop dashboard.
 
 - It's trimmed to fit the M2's flash: no animated login screen.
 - A few features, like Path Trace, need a newer openHop than the one in this image.
 - It updates with this firmware, not with its own update button.
-- It leaves about 8 MB of flash for settings instead of about 12 MB.
 
 ### Memory
 
 The M2 has 128 MB of RAM. The repeater, dashboard and one companion fit comfortably. OpenHop plugins may not.
 
+To fit, the dashboard's packet history keeps the newest 10,000 packets, and about a day of it survives a reboot. Regions, contacts and other settings are always kept.
+
 ## Updating
 
 You can't use openHop's built-in upgrade system. openHop is built into the firmware, so update with firmware releases, not the dashboard's update button. (Maybe we can fix this).
 
-Download the new `-squashfs-sysupgrade.bin` (or `-waev-squashfs-sysupgrade.bin`) from [releases](../../releases) and flash it in the OpenWrt web interface (**System → Backup / Flash Firmware**) with *Keep settings* **ticked**.
+Download the new `-squashfs-sysupgrade.bin` from [releases](../../releases) and flash it in the OpenWrt web interface (**System → Backup / Flash Firmware**) with *Keep settings* **ticked**.
 
 Your keys, settings, etc. are kept.
 
@@ -97,7 +98,7 @@ Your keys, settings, etc. are kept.
 
 - **`feed/m2modem/`** – the radio driver. A small C daemon that runs the M2's SX1250 radio as a standard LoRa transceiver (including 62.5 kHz), switches the front-end amplifier, and serves openHop's modem protocol on `127.0.0.1:5055`. See [docs/radio.md](docs/radio.md).
 - **`feed/openhop-repeater/`** – openHop Repeater and openHop Core packaged for OpenWrt, pinned to tested versions, with the few Python libraries OpenWrt doesn't ship and a small patch that adds the M2 to the setup wizard.
-- **`feed/waev-outpost/`** – the waev:outpost console for the `-waev` image, trimmed to fit.
+- **`feed/waev-outpost/`** – the waev:outpost console, trimmed to fit.
 - **`feed/meshcore-m2-base/`** – first-boot setup: optional preset configuration (`/etc/config/meshcore`), root password and SSH handling, and saving openHop's database to flash so regions and companion contacts survive reboots.
 - **`target/sensecap-m2/`** – the OpenWrt 24.10 image configuration and M2 device support.
 - **`build/`** – Dockerfile and build script. See [docs/building.md](docs/building.md).

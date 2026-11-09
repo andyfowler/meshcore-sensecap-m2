@@ -2,7 +2,7 @@
 # Build the meshcore-m2 OpenWrt image. Runs inside the build container:
 #   /src  = this repo (read-only bind mount)
 #   /work = case-sensitive build volume
-# Usage: build.sh [prepare|toolchain|image|waev|all]   (default: all)
+# Usage: build.sh [prepare|toolchain|image|all]   (default: all)
 set -euo pipefail
 OPENWRT_TAG=${OPENWRT_TAG:-v24.10.7}
 JOBS=${JOBS:-$(nproc)}
@@ -61,17 +61,10 @@ dl_cache() {
 }
 toolchain() { cd "$OW"; dl_cache; make -j"$JOBS" download; make -j"$JOBS" toolchain/install; }
 image()     { cd "$OW"; make -j"$JOBS" || make -j1 V=s; ls -l bin/targets/ramips/mt76x8/; }
-# the same image plus the waev:outpost console; run after 'image' (reuses its build)
-waev()      {
-	cd "$OW"
-	grep -q '^CONFIG_PACKAGE_waev-outpost=y' .config || { echo 'CONFIG_PACKAGE_waev-outpost=y' >> .config; make defconfig; }
-	image
-}
 
 case "$step" in
 	prepare) prepare ;;
 	toolchain) toolchain ;;
 	image) image ;;
-	waev) waev ;;
 	all) prepare; toolchain; image ;;
 esac

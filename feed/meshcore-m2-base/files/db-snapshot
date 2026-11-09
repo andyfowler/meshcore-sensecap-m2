@@ -2,6 +2,10 @@
 # db-snapshot save|restore - openHop keeps its database (regions, companion contacts,
 # neighbours, stats) in RAM on OpenWrt. Save a consistent copy to flash periodically
 # and on shutdown, and restore it at boot.
+#
+# openHop only drops packet history older than 31 days, which at a busy site is more
+# than the M2's RAM, so each save also trims the live history to the newest rows. The
+# flash copy keeps about a day of it.
 LIVE=/var/lib/openhop_repeater/repeater.db
 SAVED=/etc/openhop_repeater/state/repeater.db
 case "$1" in
@@ -18,10 +22,20 @@ save)
 	rm -f "$TMP" "$TMP"-*
 	python3 - "$LIVE" "$TMP" <<'PY' && cp "$TMP" "$SAVED.tmp" && mv "$SAVED.tmp" "$SAVED"
 import sqlite3, sys
+
+def trim(db, table, keep):
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
+        db.execute(f"DELETE FROM {table} WHERE id <= (SELECT max(id) FROM {table}) - ?", (keep,))
+        db.commit()
+
 src = sqlite3.connect(sys.argv[1], timeout=30)
+trim(src, "packets", 10000)       # about 5 MB
+trim(src, "noise_floor", 10000)   # about 3 days
 dst = sqlite3.connect(sys.argv[2])
 src.backup(dst)
 src.close()
+trim(dst, "packets", 2000)
+trim(dst, "noise_floor", 2880)    # about a day
 dst.execute("PRAGMA journal_mode=DELETE")
 dst.execute("VACUUM")
 dst.close()

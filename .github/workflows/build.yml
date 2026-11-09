@@ -97,16 +97,6 @@ jobs:
         run: |
           mkdir -p out
           cp $W/openwrt/bin/targets/ramips/mt76x8/*sensecap*squashfs-sysupgrade.bin out/
-
-      # the same image plus the waev:outpost console (a few more minutes)
-      - name: Build waev image
-        run: $RUN /src/build/build.sh waev
-
-      - name: Collect waev image
-        run: |
-          f=$(ls $W/openwrt/bin/targets/ramips/mt76x8/*sensecap*squashfs-sysupgrade.bin)
-          b=$(basename "$f" -squashfs-sysupgrade.bin)
-          cp "$f" "out/$b-waev-squashfs-sysupgrade.bin"
           (cd out && sha256sum *.bin > sha256sums)
           ls -l out
 
