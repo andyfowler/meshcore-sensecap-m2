@@ -4,6 +4,8 @@ PKG_NAME:=openhop-repeater
 PKG_VERSION:=2026.09.09
 PKG_RELEASE:=1
 
+# openHop Repeater 1.1.4 (keep in step with the commit below)
+OPENHOP_REPEATER_VERSION:=1.1.4
 PKG_SOURCE:=openhop_repeater-13eb8b2ea8b1.tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/openhop-dev/openhop_repeater/tar.gz/13eb8b2ea8b1cdb4a07ed6e282dc99e3aa8a5a8b?
 PKG_HASH:=e32248bd1f3095179a83532bb962a1f0a07a518cb254c1ec29ddfecda919f865
@@ -157,11 +159,14 @@ define Build/Prepare
 	tar -xzf $(DL_DIR)/openhop_core-$(OPENHOP_CORE_SHA).tar.gz -C $(PKG_BUILD_DIR)/src
 	for p in ./patches/*.patch; do patch -p1 -d $(PKG_BUILD_DIR)/src/openhop_repeater-* < $$$$p || exit 1; done
 	cp -R $(PKG_BUILD_DIR)/src/openhop_repeater-*/repeater $(OH_LIB)/
+	# normally generated from git tags at packaging time; without it openHop reports 'unknown'
+	echo 'version = __version__ = "$(OPENHOP_REPEATER_VERSION)"' > $(OH_LIB)/repeater/_version.py
 	cp -R $(PKG_BUILD_DIR)/src/openhop_core-*/src/openhop_core $(OH_LIB)/
 	mkdir -p $(OH_LIB)/Crypto/Cipher
 	touch $(OH_LIB)/Crypto/__init__.py $(OH_LIB)/Crypto/Cipher/__init__.py
 	cp ./files/pycryptodome_aes_shim.py $(OH_LIB)/Crypto/Cipher/AES.py
 	for w in $(PY_WHEELS); do unzip -q -o $(DL_DIR)/$$$$w -d $(OH_LIB)/vendor -x '*.dist-info/RECORD'; done
+	$(STAGING_DIR_HOSTPKG)/bin/python3 ./files/speedups.py $(OH_LIB)/vendor
 	find $(OH_LIB) \( -name tests -o -name test -o -name __pycache__ \) -type d -prune -exec rm -rf {} +
 	find $(OH_LIB) -name '*.map' -delete
 endef

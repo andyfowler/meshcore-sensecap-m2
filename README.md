@@ -1,10 +1,12 @@
-# MeshCore for the SenseCAP M2
+# MeshCore repeater & observer for the SenseCAP M2
 
 Firmware that turns a **Seeed SenseCAP M2 Multi-Platform** LoRaWAN gateway into a **[MeshCore](https://meshcore.io)** device. It's a custom [OpenWrt](https://openwrt.org) 24.10 image running [openHop Repeater](https://github.com/openhop-dev/openhop_repeater), and it supports the US/Canada **62.5 kHz** preset, which the M2's SX1302 gateway chip can't do on its own ([how](docs/radio.md)).
 
-> This is early but I have it running on real hardware. Please report what you find.
+> This is early but I have it running on real hardware. Please report what you find, especially other hardware.
 
 ## What you get
+
+<img src="docs/images/sensecap-m2.png" alt="SenseCAP M2 Multi-Platform" width="240" align="right">
 
 * **Repeater** - A MeshCore repeater, up to 27 dBm through the M2's amplifier and external antenna, managed through the MeshCore app or the openHop dashboard, running on port 8000.
 * **Observer** - Optionally uploads what it hears via MQTT to MeshMapper, etc.
@@ -17,7 +19,7 @@ There are two web pages on the M2:
 
 ## Install
 
-You need a **SenseCAP M2 Multi-Platform** (not the Data-Only Helium model), connected to your network by Ethernet.
+You need a **SenseCAP M2 Multi-Platform** (that's all I've tested it on). Probably goes easier if connected to your network by Ethernet (wi-fi works fine after flashing).
 
 > **Two flashes required.** You install Seeed's open-source firmware first, then this image.
 >
@@ -25,10 +27,11 @@ You need a **SenseCAP M2 Multi-Platform** (not the Data-Only Helium model), conn
 
 1. **Log in to your M2.** Find it in your router's device list (it shows up as "SenseCAP"), open `https://<address>`, and log in with the username and password from the sticker underneath.
 2. **Flash Seeed's open-source firmware.** Download the file for your region from [Seeed's releases](https://github.com/Seeed-Solution/LoRa_Gateway_OpenWRT/releases), e.g. the one ending `-sysupgrade-US915-4G.bin` (the 4G build works fine without a cellular modem). Go to **System → Backup / Flash Firmware → Local upgrade** and flash it. Untick *Keep settings* if offered. You can skip this step if you're already running ChirpStack Gateway OS.
-3. **Flash this firmware.** Open the OpenWrt web interface at `http://<address>` (user `root`, no password). Go to **System → Backup / Flash Firmware → Flash new firmware image**, choose the file ending `-squashfs-sysupgrade.bin` from the [latest release](../../releases/latest), untick *Keep settings*, and flash.
-4. **Wait about 5 minutes.** The first boot is slow.
+3. **[Download this firmware](https://github.com/andyfowler/meshcore-sensecap-m2/releases/latest)**. Choose the file ending `-squashfs-sysupgrade.bin`.
+4. **Flash this firmware.** Open the OpenWrt web interface at `http://<address>` (user `root`, no password). Go to **System → Backup / Flash Firmware → Flash new firmware image**, untick *Keep settings*, and flash.
+5. **Wait about 5 minutes.** The first boot is slow.
 
-## Set up
+## Set up openHop
 
 Open the openHop dashboard at `http://meshcore-m2-xxxxxx.local:8000` (`xxxxxx` is the end of the M2's MAC address) or `http://<ip>:8000`. The setup wizard asks for:
 
@@ -88,6 +91,12 @@ Your keys, settings, etc. are kept.
 - **`target/sensecap-m2/`** – the OpenWrt 24.10 image configuration and M2 device support.
 - **`build/`** – Dockerfile and build script. See [docs/building.md](docs/building.md).
 - **`.github/workflows/`** – builds the image and attaches it to releases.
+
+### Changes to upstream software
+
+- **openHop**: adds the M2 to the setup wizard; writes the openHop version into the package, so the dashboard doesn't offer an update; replaces pycryptodome with a tiny wrapper around OpenWrt's OpenSSL; and skips two slow startup steps in CherryPy's dependencies (a timezone table and a package-version lookup).
+- **SX1302 HAL**: Seeed's patch for the M2's half-duplex SPI bus.
+- **OpenWrt**: ChirpStack's M2 device support, with the flash chip clocked at 40 MHz instead of Seeed's 10 MHz, and 64 KB compressed blocks instead of 256 KB. openHop loads hundreds of small files at startup, and both changes make that much faster.
 
 ## More
 

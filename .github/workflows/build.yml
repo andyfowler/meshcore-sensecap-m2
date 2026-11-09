@@ -16,13 +16,13 @@ jobs:
           sudo docker image prune -af
           df -h /
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build container
         run: docker build -t meshcore-sensecap-m2-build build/
 
       - name: Cache OpenWrt downloads
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/dl
           key: openwrt-dl-${{ hashFiles('target/sensecap-m2/config.seed', 'feed/**/Makefile') }}
@@ -46,13 +46,13 @@ jobs:
           cp ${{ runner.temp }}/work/openwrt/bin/targets/ramips/mt76x8/sha256sums out/ || true
           ls -l out
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: meshcore-sensecap-m2-image
           path: out/
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: out/*

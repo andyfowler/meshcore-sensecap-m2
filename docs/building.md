@@ -71,5 +71,6 @@ docs/
 
 `feed/openhop-repeater/Makefile` pins openHop Repeater and openHop Core to specific commits
 (with SHA-256 hashes), along with the few pure-Python libraries OpenWrt doesn't package.
-To move to a newer openHop, update the commit hashes and `PKG_HASH` values, rebuild, test on
+To move to a newer openHop, update the commit hashes, `PKG_HASH` values and
+`OPENHOP_REPEATER_VERSION`, rebuild, test on
 a device, and tag a release.
