@@ -36,24 +36,12 @@ edit(bundle("Setup", old), old, "{key:`gpio`,title:`SenseCAP M2 / other GPIO dev
 old = "a.value=/unavailable|503/i.test(t)"
 edit(bundle("Dashboard", old), old, "a.value=!1")
 
-# Sidebar version details (click the R:/Core: badges): add this image's build.
-old = "D(`span`,br,`v`+p(Q.value.base),1)])"
-edit(bundle("index", old), old,
-     old + ",D(`div`,yr,[D(`span`,{class:`text-content-muted font-medium`},`Build:`),"
-     "D(`span`,br,`meshcore-sensecap-m2 %s`)])" % build_id)
-
-# MQTT status messages (LetsMesh, MeshMapper, ...): name the hardware.
-edit(
-    lib / "repeater/data_acquisition/mqtt_handler.py",
-    '"model": "openHop-Repeater",',
-    '"model": "openHop-Repeater (SenseCAP M2)",',
-)
-
-# The over-the-air version reply looks up pip package metadata, which this
-# build doesn't install, so it answered "pyMC". Use the package version.
-edit(
-    lib / "repeater/handler_helpers/protocol_request.py",
-    '            from importlib.metadata import version as pkg_version\n\n'
-    '            fw_version = pkg_version("openhop-repeater")\n',
-    '            from repeater import __version__ as fw_version\n',
-)
+# Sidebar: show this image's build as a badge on its own line under the
+# R:/Core: version badges (there's no room for a third one beside them).
+idx = bundle("index", "gr={class:`flex items-center gap-2`}")
+edit(idx, "gr={class:`flex items-center gap-2`}", "gr={class:`flex items-center gap-2`,style:{flexWrap:`wrap`}}")
+old = "M19 9l-7 7-7-7`},null,-1)]],2))])"
+edit(idx, old,
+     old[:-2] + ",D(`div`,{style:{flexBasis:`100%`}},[D(`span`,{class:`glass-card px-2 py-1 text-xs "
+     "font-medium rounded border text-content-secondary dark:text-content-muted border-stroke-subtle "
+     "dark:border-stroke`,title:`meshcore-sensecap-m2 build`},`M2:" + build_id + "`)])])")
