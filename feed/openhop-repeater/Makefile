@@ -175,7 +175,7 @@ define Build/Compile
 	# add the SenseCAP M2 as the first hardware choice in openHop's setup wizard
 	$(STAGING_DIR_HOSTPKG)/bin/python3 -c 'import json,sys; f=sys.argv[1]; d=json.load(open(f)); d["hardware"]={**json.load(open(sys.argv[2])), **d["hardware"]}; json.dump(d,open(f,"w"),indent=2)' \
 		$$$$(ls -d $(PKG_BUILD_DIR)/src/openhop_repeater-*)/radio-settings.json ./files/sensecap-m2-hardware.json
-	$(STAGING_DIR_HOSTPKG)/bin/python3 ./files/wizard_text.py $(OH_LIB)
+	$(STAGING_DIR_HOSTPKG)/bin/python3 ./files/openhop_tweaks.py $(OH_LIB)
 	$(STAGING_DIR_HOSTPKG)/bin/python3 -m compileall -q -j 0 -d /usr/lib/openhop $(OH_LIB) >/dev/null
 endef
 
