@@ -30,7 +30,7 @@ from a radio in I/Q streaming mode. So `m2modem` keeps **radio B** streaming pur
 which lets it switch the FEM to transmit or receive around every packet and select the amplifier gain.
 
 Transmit power follows Seeed's calibrated table for the M2: up to 15 dBm with the amplifier bypassed,
-16–27 dBm with it on. The default is 22 dBm.
+16–27 dBm with it on. openHop's default is 22 dBm; to use the M2's full 27 dBm, set the transmit power in the dashboard or send `set tx 27` from the MeshCore app, then restart the repeater.
 
 ## m2modem
 

@@ -41,7 +41,7 @@ Open the openHop dashboard at `http://meshcore-m2-xxxxxx.local:8000` (`xxxxxx` i
 - **Radio preset** your mesh uses (US/Canada: 910.525 MHz, 62.5 kHz, SF7, CR 4/5)
 - **Admin password**, 8 or more characters, for the dashboard and MeshCore remote admin. This password will also become your OpenWRT root password.
 
-Then it starts repeating. Change anything else (location, transmit power, regions, path hash mode, delays, owner info) in the openHop dashboard or with the usual repeater commands in the MeshCore app. Settings survive reboots and updates.
+Then it starts repeating. Change anything else (location, transmit power (22 dBm by default, up to 27 on the M2), regions, path hash mode, delays, owner info) in the openHop dashboard or with the usual repeater commands in the MeshCore app. Settings survive reboots and updates.
 
 ### Wi-Fi
 

@@ -91,7 +91,7 @@ static struct { uint8_t sym_code, peak, min; } cad = { 0x01, 22, 10 };
 /* Front-end (FEM) control. Only works while the SX1302 core is clocked (radio B in I/Q mode).
  * PA_EN high = FEM transmit path; LNA_EN high = FEM receive LNA. PA_GAIN selects FEM PA (0 bypass, 1 PA). */
 static uint16_t reg_pa_en, reg_lna_en, reg_pa_gain;
-static int max_power = 22;   /* dBm cap at the connector (-P to change, up to 27) */
+static int max_power = 27;   /* dBm cap at the connector (-P to lower it); top of Seeed's table */
 static void fe_rx(void) { lgw_reg_w(reg_pa_en, 0); lgw_reg_w(reg_lna_en, 1); }
 static void fe_tx(void) { lgw_reg_w(reg_lna_en, 0); lgw_reg_w(reg_pa_en, 1); }
 
