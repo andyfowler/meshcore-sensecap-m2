@@ -11,14 +11,24 @@ restore)
 save)
 	[ -f "$LIVE" ] || exit 0
 	mkdir -p "${SAVED%/*}"
-	python3 - "$LIVE" "$SAVED.tmp" <<'PY' && mv "$SAVED.tmp" "$SAVED"
+	# Snapshot in RAM first: the live database uses WAL mode, which needs shared
+	# memory maps that the flash filesystem (jffs2) can't provide. The copy is
+	# switched to a plain rollback journal before it goes to flash.
+	TMP=/tmp/repeater.db.snapshot
+	rm -f "$TMP" "$TMP"-*
+	python3 - "$LIVE" "$TMP" <<'PY' && cp "$TMP" "$SAVED.tmp" && mv "$SAVED.tmp" "$SAVED"
 import sqlite3, sys
 src = sqlite3.connect(sys.argv[1], timeout=30)
 dst = sqlite3.connect(sys.argv[2])
 src.backup(dst)
+src.close()
+dst.execute("PRAGMA journal_mode=DELETE")
 dst.execute("VACUUM")
-dst.close(); src.close()
+dst.close()
 PY
+	rc=$?
+	rm -f "$TMP" "$TMP"-* "$SAVED.tmp"-*
+	exit $rc
 	;;
 *) echo "usage: $0 save|restore"; exit 1 ;;
 esac
