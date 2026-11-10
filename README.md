@@ -1,12 +1,12 @@
 # MeshCore repeater & observer for the SenseCAP M2
 
+<img src="docs/images/sensecap-m2.png" alt="SenseCAP M2 Multi-Platform" width="240" align="right">
+
 Firmware that turns a **Seeed SenseCAP M2 Multi-Platform** LoRaWAN gateway into a **[MeshCore](https://meshcore.io)** device. It's a custom [OpenWrt](https://openwrt.org) 24.10 image running [openHop Repeater](https://github.com/openhop-dev/openhop_repeater), and it supports the US/Canada **62.5 kHz** preset, which the M2's SX1302 gateway chip can't do on its own ([how](docs/radio.md)).
 
 > This is early but I have it running on real hardware. Please report what you find, especially other hardware.
 
 ## What you get
-
-<img src="docs/images/sensecap-m2.png" alt="SenseCAP M2 Multi-Platform" width="240" align="right">
 
 * **Repeater** - A MeshCore repeater, up to 27 dBm through the M2's amplifier and external antenna, managed through the MeshCore app or the openHop dashboard, running on port 8000.
 * **Observer** - Optionally uploads what it hears via MQTT to MeshMapper, etc.
@@ -109,7 +109,7 @@ Your keys, settings, etc. are kept.
 - **openHop**: adds the M2 to the setup wizard; hides the dashboard's "Plugin manager is unavailable" banner; shows this repo's commit as an M2 badge under the version badges; writes the openHop version into the package, so the dashboard doesn't offer an update and the MeshCore app's version query gets a real answer; reports the model as `openHop-Repeater (SenseCAP M2)` in MQTT status messages; replaces pycryptodome with a tiny wrapper around OpenWrt's OpenSSL; bundles dateutil and websockets itself, because OpenWrt's packages for them pull in its whole Python library; ships only compiled Python files; and skips two slow startup steps in CherryPy's dependencies (a timezone table and a package-version lookup).
 - **SX1302 HAL**: Seeed's patch for the M2's half-duplex SPI bus.
 - **waev:outpost**: drops its login videos, terminal easter eggs and unused background photos (11.5 MB down to 4 MB).
-- **OpenWrt**: ChirpStack's M2 device support, with the flash chip clocked at 40 MHz instead of Seeed's 10 MHz, and 64 KB compressed blocks instead of 256 KB. openHop loads hundreds of small files at startup, and both changes make that much faster. Also, Python's `cffi` package without `pycparser`, which it only needs to compile new bindings.
+- **OpenWrt**: ChirpStack's M2 device support, with the flash chip clocked at 40 MHz instead of Seeed's 10 MHz, and 64 KB compressed blocks instead of 256 KB. openHop loads hundreds of small files at startup, and both changes make that much faster. Also, Python's `cffi` package without `pycparser`, which it only needs to compile new bindings. IPv6 address setup is off: smart-home hubs (Apple, Google) send router advertisements every few seconds, and handling them took about a quarter of the M2's CPU. To turn it back on: `uci set network.wan6.disabled=0; uci commit network; reload_config`.
 
 ## More
 

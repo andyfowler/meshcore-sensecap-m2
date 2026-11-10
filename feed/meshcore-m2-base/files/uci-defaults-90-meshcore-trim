@@ -7,6 +7,10 @@ delete network.lan.ipaddr
 delete network.lan.netmask
 delete network.lan.ip6assign
 EOI
+# IPv6 client off: smart-home hubs (Apple, Google Thread border routers) send router
+# advertisements every few seconds, and processing each one took about a quarter of
+# the M2's CPU. Set network.wan6.disabled=0 to turn it back on; upgrades keep that.
+[ -z "$(uci -q get network.wan6.disabled)" ] && uci -q set network.wan6.disabled='1'
 uci commit network
 
 # hostname meshcore-m2-xxxxxx (last 3 bytes of the Ethernet MAC)
