@@ -1,0 +1,29 @@
+name: Bug report
+description: Something isn't working on your M2
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version
+      description: The release you flashed, or the M2 badge under the version badges in the openHop dashboard (e.g. M2:3f3ee6d)
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: e.g. SenseCAP M2 Multi-Platform US915, Ethernet or Wi-Fi
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "Over SSH: `logread -e m2modem` for the radio, `logread | grep python3` for openHop"
+      render: text

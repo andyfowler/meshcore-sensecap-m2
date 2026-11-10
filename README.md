@@ -1,5 +1,9 @@
 # MeshCore repeater & observer for the SenseCAP M2
 
+[![Latest release](https://img.shields.io/github/v/release/andyfowler/meshcore-sensecap-m2)](https://github.com/andyfowler/meshcore-sensecap-m2/releases/latest)
+[![Build](https://github.com/andyfowler/meshcore-sensecap-m2/actions/workflows/build.yml/badge.svg)](https://github.com/andyfowler/meshcore-sensecap-m2/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 <img src="docs/images/sensecap-m2.png" alt="SenseCAP M2 Multi-Platform" width="240" align="right">
 
 Firmware that turns a **Seeed SenseCAP M2 Multi-Platform** LoRaWAN gateway into a **[MeshCore](https://meshcore.io)** device. It's a custom [OpenWrt](https://openwrt.org) 24.10 image running [openHop Repeater](https://github.com/openhop-dev/openhop_repeater), and it supports the US/Canada **62.5 kHz** preset, which the M2's SX1302 gateway chip can't do on its own ([how](docs/radio.md)).
@@ -130,3 +134,7 @@ Your keys, settings, etc. are kept.
 - [Seeed Studio](https://github.com/Seeed-Solution/LoRa_Gateway_OpenWRT) – the M2's open-source firmware and SPI patch
 - [ChirpStack Gateway OS](https://github.com/chirpstack/chirpstack-gateway-os) – M2 device support for OpenWrt 24.10
 - [MeshCore](https://github.com/meshcore-dev/MeshCore) and [OpenWrt](https://openwrt.org)
+
+## License
+
+This repository's own code and docs are [MIT](LICENSE). The patches to other projects (OpenWrt, the SX1302 HAL, openHop) are under those projects' licenses, and the firmware image contains OpenWrt, Linux and other packages under their own licenses (mostly GPL-2.0). Everything in the image is built from public source at the versions pinned in this repo.
