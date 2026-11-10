@@ -12,10 +12,16 @@ Firmware that turns a **Seeed SenseCAP M2 Multi-Platform** LoRaWAN gateway into 
 * **Observer** - Optionally uploads what it hears via MQTT to MeshMapper, etc.
 * **Companion** - An optional second MeshCore identity, so you can use MeshCore directly from the M2.
 
-There are two web pages on the M2:
+There are three web pages on the M2:
 
-- **the openHop dashboard**, `http://<address>:8000`, for everything MeshCore
+- **the openHop dashboard**, `http://<address>:8000/`, for everything MeshCore
+- **the [waev:outpost](https://github.com/Treehouse-00/waev-outpost-plugin) console**, `http://<address>:8000/plugins/waev.outpost/`, an alternative to the openHop dashboard with a mesh map, a packet inspector and companion chat. It's included in this image.
 - **the OpenWrt web interface**, `http://<address>`, for Wi-Fi, passwords and firmware updates
+
+<p>
+<img src="docs/images/openhop-dashboard.png" alt="openHop dashboard" width="49%">
+<img src="docs/images/waev-outpost.png" alt="waev:outpost console" width="49%">
+</p>
 
 ## Install
 
@@ -67,7 +73,7 @@ Regions aren't part of the file; set them with `region put …` commands. A file
 
 ### waev:outpost console
 
-The image also includes [waev:outpost](https://github.com/Treehouse-00/waev-outpost-plugin), an alternative console for openHop with a mesh map, a packet inspector and companion chat. Open it at `http://<address>:8000/plugins/waev.outpost/` and log in with your dashboard password. To make it the page at `http://<address>:8000/`, go to **System → Configuration → Access → Web Options → Web Frontend** in the openHop dashboard.
+Both consoles are always available; open whichever you like at its address and log in with your dashboard password. To choose which one opens at `http://<address>:8000/`, go to **System → Configuration → Access → Web Options → Web Frontend** in the openHop dashboard (waev has the same setting under Configuration).
 
 - It's trimmed to fit the M2's flash: no animated login screen.
 - A few features, like Path Trace, need a newer openHop than the one in this image.
