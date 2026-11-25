@@ -78,6 +78,7 @@ static int cmd_r(uint8_t op, const uint8_t *args, int na, uint8_t *out, int n) {
     return ioctl(spi_fd, SPI_IOC_MESSAGE(2), k) == 2 + na + n ? 0 : -1;
 }
 static void reg_w(uint16_t a, uint8_t v) { uint8_t b[3] = { a >> 8, a & 0xff, v }; cmd_w(0x0D, b, 3); }
+static int reg_r(uint16_t a) { uint8_t ar[2] = { a >> 8, a & 0xff }, o[2] = {0, 0}; if (cmd_r(0x1D, ar, 2, o, 2) != 0) return -1; return o[1]; }
 static uint8_t status_byte(void) { uint8_t o[1] = {0}; cmd_r(0xC0, NULL, 0, o, 1); return o[0]; }
 static uint16_t irq_get(void) { uint8_t o[3] = {0}; cmd_r(0x12, NULL, 0, o, 3); return (o[1] << 8) | o[2]; }
 static void irq_clear(void) { uint8_t a[2] = { 0xFF, 0xFF }; cmd_w(0x02, a, 2); }
@@ -144,6 +145,10 @@ static int radio_apply_config(void) {
     lgw_reg_w(reg_pa_gain, tx_pa_gain);
     a[0] = 0x00; a[1] = 0x00; cmd_w(0x8F, a, 2);                             /* buffer base */
     reg_w(0x08AC, 0x96);                                                     /* RX boosted gain */
+    /* Gain-control lockup workaround: set bit 0 of register 0x08B5, keeping the other bits (MeshCore
+     * PR 3824; openhop_core does the same in _apply_rx_sensitivity_fix). Without it a strong signal can
+     * leave the receiver at low gain until receive is re-entered. */
+    { int v = reg_r(0x08B5); if (v >= 0) { reg_w(0x08B5, (uint8_t)(v | 0x01)); DBG("register 0x08B5: was 0x%02x, reads 0x%02x", v, reg_r(0x08B5) & 0xFF); } }
     LOG("radio config: %.3f MHz BW%u SF%u CR4/%u %d dBm (FEM pa_gain %d, SX1250 %d dBm) sync 0x%04x pre %u ldro %d",
         cfg.freq / 1e6, cfg.bw, cfg.sf, cfg.cr, tx_power_eff, tx_pa_gain, p, sw, cfg.preamble, ldro_needed());
     return 0;
@@ -235,6 +240,28 @@ static void cfg_payload(uint8_t *p) {
     memcpy(p + 11, &cfg.sync, 2); p[13] = cfg.preamble;
 }
 
+/* A reception in progress shows as PreambleDetected (0x0004), SyncWordValid (0x0008), or HeaderValid
+ * (0x0010) with no RxDone yet. CAD starts from standby, which would end that reception, so a CAD
+ * request that arrives during one is answered "busy" without touching the radio. HeaderValid counts for
+ * as long as a packet can last; PreambleDetected alone only for the time a preamble, sync word, and
+ * header take, because that flag stays latched after a false detection. */
+#define IRQ_PARTIAL 0x001C
+static uint64_t partial_since = 0;                  /* when the current partial-only IRQ was first seen */
+static uint64_t max_packet_ms(void) { return toa_us(255) / 1000 + 500; }
+static void poll_rx(void);
+static int rx_in_flight(void) {
+    if (rstate != RS_RX) return 0;
+    uint16_t irq = irq_get();
+    if (!irq) return 0;
+    if (irq & ~IRQ_PARTIAL) { poll_rx(); return 0; }  /* a finished packet or an error: handle it first */
+    uint64_t t = now_ms();
+    if (!partial_since) partial_since = t;
+    uint64_t age = t - partial_since;
+    uint64_t sym_us = ((uint64_t)1000000 << cfg.sf) / cfg.bw;
+    uint64_t hold = (uint64_t)(cfg.preamble + 37) * sym_us / 1000 + 50;
+    return (irq & 0x0010) ? age <= max_packet_ms() : age <= hold;
+}
+
 static void handle(uint8_t cmd, const uint8_t *pl, int n) {
     DBG("cmd 0x%02x len %d", cmd, n);
     switch (cmd) {
@@ -260,6 +287,7 @@ static void handle(uint8_t cmd, const uint8_t *pl, int n) {
         LOG("TX %3dB airtime %u ms (radio %d ms): %02x%02x...", n, air / 1000, ms, pl[0], n > 1 ? pl[1] : 0);
         send_frame(CMD_TX_DONE, &air, 4); break; }
     case CMD_CAD_REQUEST: {
+        if (rx_in_flight()) { uint8_t b = 1; send_frame(CMD_CAD_RESP, &b, 1); DBG("CAD busy: reception in progress"); break; }
         int r = radio_cad(); radio_rx();
         if (r < 0) { send_err(ERR_CAD_FAILED); break; }
         uint8_t b = (uint8_t)r; send_frame(CMD_CAD_RESP, &b, 1); DBG("CAD %s", r ? "busy" : "clear"); break; }
@@ -296,7 +324,14 @@ static void parse_client(void) {
 static void poll_rx(void) {
     if (rstate != RS_RX) return;
     uint16_t irq = irq_get();
-    if (!irq) return;
+    if (!irq) { partial_since = 0; return; }
+    if (!(irq & ~IRQ_PARTIAL)) {
+        uint64_t t = now_ms();
+        if (!partial_since) partial_since = t;
+        else if (t - partial_since > max_packet_ms()) { irq_clear(); partial_since = 0; }  /* latched false detection */
+        return;
+    }
+    partial_since = 0;
     if (irq & 0x0002) {
         uint8_t bs[3] = {0}; cmd_r(0x13, NULL, 0, bs, 3);
         uint8_t len = bs[1], start = bs[2];
