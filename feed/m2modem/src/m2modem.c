@@ -42,7 +42,8 @@ enum { CMD_TX_REQUEST = 0x01, CMD_TX_DONE = 0x02, CMD_TX_FAIL = 0x03, CMD_RX_PAC
        CMD_SET_CAD_PARAMS = 0x34, CMD_CAD_PARAMS_RESP = 0x35, CMD_AUTH = 0x50, CMD_AUTH_OK = 0x51,
        CMD_GET_VERSION = 0x70, CMD_VERSION_RESP = 0x71, CMD_ERROR = 0xFE, CMD_PING = 0xFF };
 enum { ERR_CRC_MISMATCH = 0x01, ERR_INVALID_CMD = 0x02, ERR_RADIO_BUSY = 0x03, ERR_TX_TIMEOUT = 0x04,
-       ERR_PAYLOAD_TOO_BIG = 0x05, ERR_INVALID_CONFIG = 0x06, ERR_CAD_FAILED = 0x07 };
+       ERR_PAYLOAD_TOO_BIG = 0x05, ERR_INVALID_CONFIG = 0x06, ERR_CAD_FAILED = 0x07,
+       ERR_CHANNEL_BUSY = 0x0E /* openHop retries the TX within its listen-before-talk budget */ };
 
 static int verbose = 0;
 static const char *reset_script = NULL;
@@ -82,7 +83,6 @@ static int reg_r(uint16_t a) { uint8_t ar[2] = { a >> 8, a & 0xff }, o[2] = {0, 
 static uint8_t status_byte(void) { uint8_t o[1] = {0}; cmd_r(0xC0, NULL, 0, o, 1); return o[0]; }
 static uint16_t irq_get(void) { uint8_t o[3] = {0}; cmd_r(0x12, NULL, 0, o, 3); return (o[1] << 8) | o[2]; }
 static void irq_clear(void) { uint8_t a[2] = { 0xFF, 0xFF }; cmd_w(0x02, a, 2); }
-static int rssi_inst(void) { uint8_t r[2] = {0}; cmd_r(0x15, NULL, 0, r, 2); return -r[1] / 2; }
 
 /* radio config (openHop RADIO_CONFIG "<IIBBbHB") */
 static struct { uint32_t freq, bw; uint8_t sf, cr; int8_t power; uint16_t sync; uint8_t preamble; } cfg =
@@ -218,8 +218,9 @@ static int radio_cad(void) {
 /* ---------------- TCP framing ---------------- */
 static int client = -1;
 static uint8_t rxbuf[4096]; static int rxlen = 0;
-static uint32_t st_rx = 0, st_tx = 0, st_crc = 0; static int16_t last_rssi = 0, last_snr10 = 0;
+static uint32_t st_rx = 0, st_tx = 0, st_crc = 0, st_tx_deferred = 0, st_cad_inflight = 0; static int16_t last_rssi = 0, last_snr10 = 0;
 static double noise_acc = -120; static uint64_t t_start;
+static uint16_t last_irq = 0;                       /* IRQ flags seen by the latest poll_rx() */
 
 static uint16_t crc16(const uint8_t *d, int n) {
     uint16_t c = 0xFFFF;
@@ -246,20 +247,36 @@ static void cfg_payload(uint8_t *p) {
  * as long as a packet can last; PreambleDetected alone only for the time a preamble, sync word, and
  * header take, because that flag stays latched after a false detection. */
 #define IRQ_PARTIAL 0x001C
-static uint64_t partial_since = 0;                  /* when the current partial-only IRQ was first seen */
+static uint64_t partial_since = 0;                  /* when PreambleDetected/SyncWordValid was first seen */
+static uint64_t header_since = 0;                   /* when HeaderValid was first seen */
 static uint64_t max_packet_ms(void) { return toa_us(255) / 1000 + 500; }
+static uint64_t preamble_hold_ms(void) {            /* preamble + sync word + header, with margin */
+    uint64_t sym_us = ((uint64_t)1000000 << cfg.sf) / cfg.bw;
+    return (uint64_t)(cfg.preamble + 37) * sym_us / 1000 + 50;
+}
+/* Track how long the partial flags in irq have been up; returns 1 while they still mean a packet is
+ * arriving. Flags older than that are a latched false detection: clear them so the next real preamble
+ * starts fresh timers. */
+static int partial_active(uint16_t irq) {
+    uint64_t t = now_ms();
+    if (irq & 0x0010) {
+        if (!header_since) header_since = t;
+        if (t - header_since <= max_packet_ms()) return 1;
+    } else {
+        header_since = 0;
+        if (!partial_since) partial_since = t;
+        if (t - partial_since <= preamble_hold_ms()) return 1;
+    }
+    irq_clear(); partial_since = header_since = 0;
+    return 0;
+}
 static void poll_rx(void);
 static int rx_in_flight(void) {
     if (rstate != RS_RX) return 0;
     uint16_t irq = irq_get();
-    if (!irq) return 0;
+    if (!irq) { partial_since = header_since = 0; return 0; }
     if (irq & ~IRQ_PARTIAL) { poll_rx(); return 0; }  /* a finished packet or an error: handle it first */
-    uint64_t t = now_ms();
-    if (!partial_since) partial_since = t;
-    uint64_t age = t - partial_since;
-    uint64_t sym_us = ((uint64_t)1000000 << cfg.sf) / cfg.bw;
-    uint64_t hold = (uint64_t)(cfg.preamble + 37) * sym_us / 1000 + 50;
-    return (irq & 0x0010) ? age <= max_packet_ms() : age <= hold;
+    return partial_active(irq);
 }
 
 static void handle(uint8_t cmd, const uint8_t *pl, int n) {
@@ -277,9 +294,15 @@ static void handle(uint8_t cmd, const uint8_t *pl, int n) {
         radio_rx();
         uint8_t p[14]; cfg_payload(p); send_frame(CMD_CONFIG_RESP, p, 14); break; }
     case CMD_GET_CONFIG: { uint8_t p[14]; cfg_payload(p); send_frame(CMD_CONFIG_RESP, p, 14); break; }
-    case CMD_RX_START: radio_rx(); send_frame(CMD_RX_STARTED, NULL, 0); break;
+    case CMD_RX_START:   /* openHop sends this after every TX, when the radio is already receiving again */
+        if (rx_in_flight()) DBG("RX_START: reception in progress, radio left receiving");
+        else radio_rx();
+        send_frame(CMD_RX_STARTED, NULL, 0); break;
     case CMD_TX_REQUEST: {
         if (n < 1 || n > 255) { send_err(ERR_PAYLOAD_TOO_BIG); break; }
+        /* A packet started arriving after the CAD said clear: transmitting now would lose it here and
+         * collide with it at the other receivers. openHop retries a busy refusal within its LBT budget. */
+        if (rx_in_flight()) { st_tx_deferred++; LOG("TX %dB deferred: reception in progress", n); send_err(ERR_CHANNEL_BUSY); break; }
         int ms = radio_tx(pl, n);
         radio_rx();
         if (ms < 0) { LOG("TX %dB: timeout", n); send_frame(CMD_TX_FAIL, NULL, 0); break; }
@@ -287,7 +310,7 @@ static void handle(uint8_t cmd, const uint8_t *pl, int n) {
         LOG("TX %3dB airtime %u ms (radio %d ms): %02x%02x...", n, air / 1000, ms, pl[0], n > 1 ? pl[1] : 0);
         send_frame(CMD_TX_DONE, &air, 4); break; }
     case CMD_CAD_REQUEST: {
-        if (rx_in_flight()) { uint8_t b = 1; send_frame(CMD_CAD_RESP, &b, 1); DBG("CAD busy: reception in progress"); break; }
+        if (rx_in_flight()) { uint8_t b = 1; send_frame(CMD_CAD_RESP, &b, 1); st_cad_inflight++; LOG("CAD busy: reception in progress"); break; }
         int r = radio_cad(); radio_rx();
         if (r < 0) { send_err(ERR_CAD_FAILED); break; }
         uint8_t b = (uint8_t)r; send_frame(CMD_CAD_RESP, &b, 1); DBG("CAD %s", r ? "busy" : "clear"); break; }
@@ -322,16 +345,12 @@ static void parse_client(void) {
 }
 
 static void poll_rx(void) {
-    if (rstate != RS_RX) return;
+    if (rstate != RS_RX) { last_irq = 0xFFFF; return; }
     uint16_t irq = irq_get();
-    if (!irq) { partial_since = 0; return; }
-    if (!(irq & ~IRQ_PARTIAL)) {
-        uint64_t t = now_ms();
-        if (!partial_since) partial_since = t;
-        else if (t - partial_since > max_packet_ms()) { irq_clear(); partial_since = 0; }  /* latched false detection */
-        return;
-    }
-    partial_since = 0;
+    last_irq = irq;
+    if (!irq) { partial_since = header_since = 0; return; }
+    if (!(irq & ~IRQ_PARTIAL)) { partial_active(irq); return; }
+    partial_since = header_since = 0;
     if (irq & 0x0002) {
         uint8_t bs[3] = {0}; cmd_r(0x13, NULL, 0, bs, 3);
         uint8_t len = bs[1], start = bs[2];
@@ -343,9 +362,13 @@ static void poll_rx(void) {
         cmd_r(0x1E, off, 1, data, len + 1);
         int16_t rssi = -ps[1] / 2, snr10 = (int16_t)((int8_t)ps[2] * 10 / 4), srssi = -ps[3] / 2;
         last_rssi = rssi; last_snr10 = snr10; st_rx++;
-        LOG("RX %3dB rssi %d snr %.1f: %02x%02x...", len, rssi, snr10 / 10.0, data[1], len > 1 ? data[2] : 0);
         uint8_t pl[262]; memcpy(pl, &rssi, 2); memcpy(pl + 2, &snr10, 2); memcpy(pl + 4, &srssi, 2); memcpy(pl + 6, data + 1, len);
         send_frame(CMD_RX_PACKET, pl, 6 + len);
+        /* frequency error of this packet relative to our receiver (registers 0x076B-0x076D, 20-bit signed) */
+        int32_t fe = ((reg_r(0x076B) & 0x0F) << 16) | ((reg_r(0x076C) & 0xFF) << 8) | (reg_r(0x076D) & 0xFF);
+        if (fe & 0x80000) fe -= 0x100000;
+        LOG("RX %3dB rssi %d snr %.1f freq err %+.0f Hz: %02x%02x...", len, rssi, snr10 / 10.0,
+            1.55 * fe * (cfg.bw / 1000.0) / 1600.0, data[1], len > 1 ? data[2] : 0);
     } else if (irq & 0x0060) { st_crc++; irq_clear(); DBG("RX header/crc error irq 0x%04x", irq); }
     else if (irq & ~0x0004 & ~0x0008 & ~0x0010) irq_clear();
 }
@@ -409,7 +432,7 @@ int main(int argc, char **argv) {
     if (bind(ls, (struct sockaddr *)&sa, sizeof sa) || listen(ls, 1)) { LOG("bind/listen failed: %s", strerror(errno)); return 1; }
     LOG("%s listening on tcp/%d (radio %c)", VERSION, port, rf ? 'B' : 'A');
 
-    uint64_t last_noise = 0;
+    uint64_t last_noise = 0, last_summary = now_ms();
     while (!stop) {
         fd_set fs; FD_ZERO(&fs); FD_SET(ls, &fs); int mx = ls;
         if (client >= 0) { FD_SET(client, &fs); if (client > mx) mx = client; }
@@ -429,11 +452,27 @@ int main(int argc, char **argv) {
             else { rxlen += n; parse_client(); }
         }
         poll_rx();
-        if (rstate == RS_RX && now_ms() - last_noise > 1000) {   /* slow EMA of idle RSSI as noise floor */
-            int rs = rssi_inst(); if (rs < noise_acc + 15) noise_acc = noise_acc * 0.9 + rs * 0.1; last_noise = now_ms();
+        if (now_ms() - last_summary >= 3600 * 1000) {
+            last_summary = now_ms();
+            LOG("hourly: rx %u tx %u crc %u tx deferred %u cad busy-in-flight %u noise %.1f dBm", st_rx, st_tx, st_crc, st_tx_deferred, st_cad_inflight, noise_acc);
+        }
+        /* Noise floor: mean of the middle half of the last NF_WIN instantaneous RSSI readings, taken every
+         * 200 ms while the demodulator sees no packet. Dropping the top and bottom quarter ignores the odd
+         * packet or burst without gating, so the value follows real changes (and shows a misbehaving
+         * receiver) within seconds instead of freezing. */
+        if (rstate == RS_RX && last_irq == 0 && now_ms() - last_noise >= 200) {
+            enum { NF_WIN = 50 };
+            static int16_t win[NF_WIN]; static int nwin = 0, iwin = 0;
+            uint8_t r[2] = {0}; cmd_r(0x15, NULL, 0, r, 2); last_noise = now_ms();
+            win[iwin] = -(int16_t)r[1]; iwin = (iwin + 1) % NF_WIN; if (nwin < NF_WIN) nwin++;   /* half-dB units */
+            int16_t s[NF_WIN]; memcpy(s, win, sizeof s);
+            for (int i = 1; i < nwin; i++) { int16_t v = s[i]; int j = i; while (j > 0 && s[j - 1] > v) { s[j] = s[j - 1]; j--; } s[j] = v; }
+            int lo = nwin / 4, hi = nwin - nwin / 4; long sum = 0;
+            for (int i = lo; i < hi; i++) sum += s[i];
+            noise_acc = sum / (double)(hi - lo) / 2.0;
         }
     }
-    LOG("stopping");
+    LOG("stopping: rx %u tx %u crc %u tx deferred %u cad busy-in-flight %u", st_rx, st_tx, st_crc, st_tx_deferred, st_cad_inflight);
     standby();
     lgw_reg_w(SX1302_REG_AGC_MCU_CTRL_FORCE_HOST_FE_CTRL, 0);
     sx1302_radio_host_ctrl(false);
